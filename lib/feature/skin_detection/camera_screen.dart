@@ -5,8 +5,8 @@ import 'package:flaconi_skin_assistant/flaconi_skin_assistant.dart';
 import 'package:flutter/material.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
-
+  const CameraScreen({super.key, this.onImageRead});
+  final Function? onImageRead;
   @override
   State<CameraScreen> createState() => _CameraScreenState();
 }
@@ -50,6 +50,7 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       await controller.setFlashMode(FlashMode.off);
       picture = await controller.takePicture();
+      widget.onImageRead?.call(picture);
       setState(() {});
     } on CameraException catch (e) {
       debugPrint('Error occured while taking picture: $e');
