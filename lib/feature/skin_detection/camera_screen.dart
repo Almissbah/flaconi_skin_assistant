@@ -14,6 +14,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   late CameraController controller;
   XFile? picture;
+  bool scanning = false;
 
   @override
   void initState() {
@@ -68,76 +69,146 @@ class _CameraScreenState extends State<CameraScreen> {
       appBar: AppBar(
         title: const Center(child: Text('Haut Scanner')),
         leading: IconButton(
-          icon: const Text('back'),
+          icon: const Text('Back'),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
       ),
-      body: Expanded(
-        child: Column(
-          children: [
-            (picture == null)
-                ? Stack(
-                    children: [
-                      CameraPreview(
+      body: SafeArea(
+        child: (picture == null)
+            ? Container(
+                color: Colors.green,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: CameraPreview(
                         controller,
                       ),
-                      Positioned.fill(
-                        child: Container(
-                          color: Color.fromARGB(206, 23, 29, 29),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Padding(
-                                padding:
-                                    EdgeInsetsDirectional.only(bottom: 30.0),
-                                child: Text(
-                                  'Bevor es losgeht',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              const InfoRow(
-                                text:
-                                    'Entferne alles, was deine Haut verdecken konnte',
-                              ),
-                              const InfoRow(
-                                text: 'Achte auf gute Beleuchtung',
-                              ),
-                              const InfoRow(
-                                text:
-                                    'Binde deine haare zuruck und setze deine Brille ab',
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(32.0),
-                                child: FilledButton(
-                                    style: const ButtonStyle(
-                                      backgroundColor: MaterialStatePropertyAll(
-                                          Colors.white),
-                                      side: MaterialStatePropertyAll(
-                                          BorderSide(width: 3)),
-                                    ),
-                                    onPressed: () {
-                                      takePicture();
-                                    },
-                                    child: const Text(
-                                      'Scan Starten',
-                                      style: TextStyle(color: Colors.black),
-                                    )),
-                              )
-                            ],
-                          ),
-                        ),
-                      )
-                    ],
-                  )
-                : Image.file(File(picture!.path)),
-          ],
+                    ),
+                    if (scanning) OverlayWithRectangleClipping(),
+                    scanning == true
+                        ? Positioned(
+                            bottom: 30,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: IconButton(
+                                  onPressed: () {
+                                    takePicture();
+                                  },
+                                  icon: const Icon(
+                                    Icons.camera,
+                                    size: 80,
+                                    color: Colors.white,
+                                  )),
+                            ),
+                          )
+                        : Positioned.fill(child: TipsWidget(
+                            onButtonPressed: () {
+                              setState(() {
+                                scanning = true;
+                              });
+                            },
+                          )),
+                  ],
+                ),
+              )
+            : Image.file(File(picture!.path)),
+      ),
+    );
+  }
+}
+
+class OverlayWithRectangleClipping extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: _getCustomPaintOverlay(context));
+  }
+
+  //CustomPainter that helps us in doing this
+  CustomPaint _getCustomPaintOverlay(BuildContext context) {
+    return CustomPaint(
+        size: MediaQuery.of(context).size, painter: RectanglePainter());
+  }
+}
+
+class RectanglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.black54;
+
+    canvas.drawPath(
+        Path.combine(
+          PathOperation.difference, //simple difference of following operations
+          //bellow draws a rectangle of full screen (parent) size
+          Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
+          //bellow clips out the circular rectangle with center as offset and dimensions you need to set
+          Path()
+            ..addRRect(RRect.fromRectAndRadius(
+                Rect.fromCenter(
+                    center: Offset(size.width * 0.5, size.height * 0.5),
+                    height: size.width * .8,
+                    width: size.height * 0.29),
+                Radius.circular(size.width * 3)))
+            ..close(),
         ),
+        paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return false;
+  }
+}
+
+class TipsWidget extends StatelessWidget {
+  const TipsWidget({super.key, required this.onButtonPressed});
+  final VoidCallback onButtonPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Color.fromARGB(206, 23, 29, 29),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Padding(
+            padding: EdgeInsetsDirectional.only(bottom: 30.0),
+            child: Text(
+              'Bevor es losgeht',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+          const InfoRow(
+            text: 'Entferne alles, was deine Haut verdecken konnte',
+          ),
+          const InfoRow(
+            text: 'Achte auf gute Beleuchtung',
+          ),
+          const InfoRow(
+            text: 'Binde deine haare zuruck und setze deine Brille ab',
+          ),
+          Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: FilledButton(
+                style: const ButtonStyle(
+                  backgroundColor: MaterialStatePropertyAll(Colors.white),
+                  side: MaterialStatePropertyAll(BorderSide(width: 3)),
+                ),
+                onPressed: onButtonPressed,
+                child: const Text(
+                  'Scan Starten',
+                  style: TextStyle(color: Colors.black),
+                )),
+          )
+        ],
       ),
     );
   }
